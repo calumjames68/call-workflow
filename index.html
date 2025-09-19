@@ -43,9 +43,21 @@
             Show Stats
         </button>
 
+        <!-- Call Type Selection -->
+        <div id="call-type-selection" class="text-center py-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">What kind of call is this?</h2>
+            <div class="flex justify-center gap-4">
+                <button id="guide-call-btn" class="w-40 bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-transform transform hover:scale-105">
+                    Guide Call
+                </button>
+                <button id="offline-call-btn" class="w-40 bg-teal-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-transform transform hover:scale-105">
+                    Offline Call
+                </button>
+            </div>
+        </div>
 
         <!-- Workflow View -->
-        <div id="workflow-view">
+        <div id="workflow-view" class="hidden">
             <!-- Progress Bar -->
             <div class="mb-6">
                 <div class="flex justify-between mb-1">
@@ -135,8 +147,11 @@
             const callNotes = document.getElementById('call-notes');
             const missedStepsSummary = document.getElementById('missed-steps-summary');
             const callNotesSummary = document.getElementById('call-notes-summary');
+            const callTypeSelection = document.getElementById('call-type-selection');
+            const guideCallBtn = document.getElementById('guide-call-btn');
+            const offlineCallBtn = document.getElementById('offline-call-btn');
 
-            const tasks = [
+            const offlineTasks = [
                 {
                     title: "1. Introduction",
                     prompt: "<strong>Script:</strong> \"Hi, my name is Calum calling from BT/EE. What was your name and how can I help?\""
@@ -174,27 +189,30 @@
                     prompt: "Ask about their household setup and current mobile provider. Mention the discounts they could get by moving their mobile service to EE."
                 }
             ];
+            
+            const guideTasks = [
+                { title: "1. Greet Guide", prompt: "Welcome the guide, get their advisor ID, and ask for a summary of the customer's issue." },
+                { title: "2. Assist & Advise", prompt: "Investigate the issue and provide a clear solution or the next steps for the guide to take." },
+                { title: "3. Handover Customer?", prompt: "Is the guide transferring the live customer call to you for resolution?", transition: true }
+            ];
 
             let taskStates = [];
             let currentStep = 0;
             let dailyStats = { perfect: 0, good: 0, bad: 0 };
+            let activeTasks = [];
 
             function getTodayDateString() {
                 const today = new Date();
-                return today.toISOString().split('T')[0]; // YYYY-MM-DD format
+                return today.toISOString().split('T')[0];
             }
 
             function loadStats() {
                 const savedDate = localStorage.getItem('callStatsDate');
                 const today = getTodayDateString();
-
                 if (savedDate === today) {
                     const savedStats = JSON.parse(localStorage.getItem('dailyCallStats'));
-                    if (savedStats) {
-                        dailyStats = savedStats;
-                    }
+                    if (savedStats) dailyStats = savedStats;
                 } else {
-                    // It's a new day, reset stats
                     localStorage.setItem('callStatsDate', today);
                     localStorage.setItem('dailyCallStats', JSON.stringify({ perfect: 0, good: 0, bad: 0 }));
                 }
@@ -209,25 +227,28 @@
 
             function initializeWorkflow() {
                 currentStep = 0;
-                taskStates = tasks.map((task, index) => ({
+                taskStates = activeTasks.map((task, index) => ({
                     id: index,
                     title: task.title,
                     prompt: task.prompt,
-                    completed: null // null, true (yes), false (no), 'na'
+                    transition: task.transition || false,
+                    completed: null
                 }));
                 
                 callNotes.value = '';
                 missedStepsSummary.innerHTML = '';
                 callNotesSummary.innerHTML = '';
+
+                callTypeSelection.classList.add('hidden');
                 workflowView.classList.remove('hidden');
                 summaryView.classList.add('hidden');
                 
                 renderCurrentStep();
-                updateScore(); // Reset score display
+                updateScore();
             }
 
             function renderCurrentStep() {
-                const task = taskStates[currentStep];
+                const task = activeTasks[currentStep];
                 stepContainer.innerHTML = `
                     <div class="task-card w-full bg-transparent flex flex-col items-center justify-between gap-4" data-id="${task.id}">
                         <h2 class="text-xl text-gray-800 flex-grow text-center font-bold">${task.title}</h2>
@@ -240,25 +261,37 @@
                     </div>
                 `;
 
-                updateButtonStyle(stepContainer.querySelector('.task-card'), task.completed);
+                updateButtonStyle(stepContainer.querySelector('.task-card'), taskStates[currentStep].completed);
                 updateProgress();
                 updateNavigation();
             }
 
             function handleSelection(status) {
-                const task = taskStates[currentStep];
-                task.completed = status;
+                const task = activeTasks[currentStep];
+                taskStates[currentStep].completed = status;
 
-                updateButtonStyle(stepContainer.querySelector('.task-card'), task.completed);
+                updateButtonStyle(stepContainer.querySelector('.task-card'), status);
                 
-                // Disable buttons to prevent multiple clicks during transition
                 const buttons = stepContainer.querySelectorAll('.btn-group button');
                 buttons.forEach(b => b.disabled = true);
                 prevBtn.disabled = true;
 
-                // Wait a moment before automatically moving to the next step
+                if (task.transition && status === true) {
+                    setTimeout(() => {
+                        activeTasks = offlineTasks;
+                        taskStates = activeTasks.map((task, index) => ({
+                            id: index, title: task.title, prompt: task.prompt,
+                            transition: task.transition || false, completed: null
+                        }));
+                        currentStep = 1; 
+                        taskStates[0].completed = true; 
+                        renderCurrentStep();
+                    }, 400);
+                    return; 
+                }
+
                 setTimeout(() => {
-                    if (currentStep < tasks.length - 1) {
+                    if (currentStep < activeTasks.length - 1) {
                         currentStep++;
                         renderCurrentStep();
                     } else {
@@ -271,24 +304,19 @@
                 const yesButton = card.querySelector('.btn-yes');
                 const noButton = card.querySelector('.btn-no');
                 const naButton = card.querySelector('.btn-na');
-
                 yesButton.classList.remove('selected');
                 noButton.classList.remove('selected');
                 naButton.classList.remove('selected');
 
-                if (status === true) {
-                    yesButton.classList.add('selected');
-                } else if (status === false) {
-                    noButton.classList.add('selected');
-                } else if (status === 'na') {
-                    naButton.classList.add('selected');
-                }
+                if (status === true) yesButton.classList.add('selected');
+                else if (status === false) noButton.classList.add('selected');
+                else if (status === 'na') naButton.classList.add('selected');
             }
             
             function updateProgress() {
-                const percentage = ((currentStep + 1) / tasks.length) * 100;
+                const percentage = ((currentStep + 1) / activeTasks.length) * 100;
                 progressBar.style.width = `${percentage}%`;
-                progressText.textContent = `Step ${currentStep + 1} of ${tasks.length}`;
+                progressText.textContent = `Step ${currentStep + 1} of ${activeTasks.length}`;
             }
 
             function updateNavigation() {
@@ -300,7 +328,6 @@
                 summaryView.classList.remove('hidden');
                 const finalPercentage = updateScore();
                 
-                // Show missed steps
                 const missedSteps = taskStates.filter(task => task.completed === false);
                 if (missedSteps.length > 0) {
                     let missedHtml = '<h3 class="text-lg font-bold text-gray-800 mb-2">Areas for Improvement:</h3><ul class="list-disc list-inside text-red-600 space-y-1">';
@@ -313,18 +340,13 @@
                     missedStepsSummary.innerHTML = '<h3 class="text-lg font-bold text-green-600 mb-2">Great job! All applicable steps completed.</h3>';
                 }
 
-                // Show call notes
                 if (callNotes.value.trim() !== "") {
                     callNotesSummary.innerHTML = `<h3 class="text-lg font-bold text-gray-800 mt-4 mb-2">Call Notes:</h3><p class="text-gray-600 p-3 bg-gray-50 border rounded-md whitespace-pre-wrap">${callNotes.value}</p>`;
                 }
                 
-                if (finalPercentage === 100) {
-                    dailyStats.perfect++;
-                } else if (finalPercentage >= 90) {
-                    dailyStats.good++;
-                } else {
-                    dailyStats.bad++;
-                }
+                if (finalPercentage === 100) dailyStats.perfect++;
+                else if (finalPercentage >= 90) dailyStats.good++;
+                else dailyStats.bad++;
                 localStorage.setItem('dailyCallStats', JSON.stringify(dailyStats));
                 updateStatsDisplay();
             }
@@ -334,31 +356,22 @@
                 const completedTasks = applicableTasks.filter(task => task.completed === true).length;
                 const totalApplicableTasks = applicableTasks.length;
                 
-                const percentage = totalApplicableTasks > 0 ? Math.round((completedTasks / totalApplicableTasks) * 100) : 100; // Score is 100 if no applicable tasks yet
+                const percentage = totalApplicableTasks > 0 ? Math.round((completedTasks / totalApplicableTasks) * 100) : 100;
                 scoreElement.textContent = `${percentage}%`;
                 
                 scoreElement.classList.remove('text-red-500', 'text-yellow-500', 'text-green-500', 'text-blue-600');
-                if (percentage < 90) {
-                    scoreElement.classList.add('text-red-500');
-                } else if (percentage < 100) {
-                    scoreElement.classList.add('text-yellow-500');
-                } else if (percentage === 100) {
-                    scoreElement.classList.add('text-green-500');
-                } else {
-                     scoreElement.classList.add('text-blue-600');
-                }
+                if (percentage < 90) scoreElement.classList.add('text-red-500');
+                else if (percentage < 100) scoreElement.classList.add('text-yellow-500');
+                else if (percentage === 100) scoreElement.classList.add('text-green-500');
+                else scoreElement.classList.add('text-blue-600');
                 return percentage;
             }
 
             // Event Listeners
             stepContainer.addEventListener('click', (e) => {
-                if (e.target.classList.contains('btn-yes')) {
-                    handleSelection(true);
-                } else if (e.target.classList.contains('btn-no')) {
-                    handleSelection(false);
-                } else if (e.target.classList.contains('btn-na')) {
-                    handleSelection('na');
-                }
+                if (e.target.classList.contains('btn-yes')) handleSelection(true);
+                else if (e.target.classList.contains('btn-no')) handleSelection(false);
+                else if (e.target.classList.contains('btn-na')) handleSelection('na');
             });
 
             prevBtn.addEventListener('click', () => {
@@ -368,16 +381,28 @@
                 }
             });
 
-            restartBtn.addEventListener('click', initializeWorkflow);
+            restartBtn.addEventListener('click', () => {
+                summaryView.classList.add('hidden');
+                callTypeSelection.classList.remove('hidden');
+            });
 
             toggleStatsBtn.addEventListener('click', () => {
                 statsSection.classList.toggle('hidden');
                 toggleStatsBtn.textContent = statsSection.classList.contains('hidden') ? 'Show Stats' : 'Hide Stats';
             });
+            
+            guideCallBtn.addEventListener('click', () => {
+                activeTasks = guideTasks;
+                initializeWorkflow();
+            });
+
+            offlineCallBtn.addEventListener('click', () => {
+                activeTasks = offlineTasks;
+                initializeWorkflow();
+            });
 
             // Initial setup
             loadStats();
-            initializeWorkflow();
         });
     </script>
 </body>
