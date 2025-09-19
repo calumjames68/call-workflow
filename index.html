@@ -21,6 +21,11 @@
             color: white;
             border-color: #dc2626; /* red-600 */
         }
+        .btn-na.selected {
+            background-color: #64748b; /* slate-500 */
+            color: white;
+            border-color: #475569; /* slate-600 */
+        }
         .btn-group button {
             transition: all 0.2s ease-in-out;
         }
@@ -56,6 +61,13 @@
                  <!-- Current task will be injected here by JavaScript -->
             </div>
 
+            <!-- Call Notes -->
+            <div class="mb-6">
+                <label for="call-notes" class="block text-sm font-medium text-gray-700 mb-1">Call Notes</label>
+                <textarea id="call-notes" rows="3" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="Jot down key points from the call..."></textarea>
+            </div>
+
+
             <!-- Navigation -->
             <div class="flex justify-center items-center">
                 <button id="prev-btn" class="w-32 bg-gray-300 text-gray-800 font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
@@ -72,6 +84,13 @@
                 <h3 class="text-xl font-bold text-gray-900">Completion Score</h3>
                 <p id="score" class="text-5xl font-bold text-blue-600 mt-1">0%</p>
             </div>
+
+             <!-- Missed Steps Summary -->
+            <div id="missed-steps-summary" class="mb-6 text-left"></div>
+
+            <!-- Call Notes Summary -->
+            <div id="call-notes-summary" class="mb-6 text-left"></div>
+
             <button id="restart-btn" class="w-full sm:w-auto bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-transform transform hover:scale-105">
                 Start New Call
             </button>
@@ -113,6 +132,9 @@
             const badCallsEl = document.getElementById('bad-calls');
             const toggleStatsBtn = document.getElementById('toggle-stats-btn');
             const statsSection = document.getElementById('stats-section');
+            const callNotes = document.getElementById('call-notes');
+            const missedStepsSummary = document.getElementById('missed-steps-summary');
+            const callNotesSummary = document.getElementById('call-notes-summary');
 
             const tasks = [
                 {
@@ -191,9 +213,12 @@
                     id: index,
                     title: task.title,
                     prompt: task.prompt,
-                    completed: null // null, true (yes), or false (no)
+                    completed: null // null, true (yes), false (no), 'na'
                 }));
                 
+                callNotes.value = '';
+                missedStepsSummary.innerHTML = '';
+                callNotesSummary.innerHTML = '';
                 workflowView.classList.remove('hidden');
                 summaryView.classList.add('hidden');
                 
@@ -210,6 +235,7 @@
                         <div class="btn-group flex-shrink-0 flex items-center gap-2 mt-4">
                             <button class="btn-yes w-24 py-2 px-4 border border-gray-300 rounded-md font-semibold text-gray-600 bg-white hover:bg-green-100">Yes</button>
                             <button class="btn-no w-24 py-2 px-4 border border-gray-300 rounded-md font-semibold text-gray-600 bg-white hover:bg-red-100">No</button>
+                            <button class="btn-na w-24 py-2 px-4 border border-gray-300 rounded-md font-semibold text-gray-600 bg-white hover:bg-slate-100">N/A</button>
                         </div>
                     </div>
                 `;
@@ -219,9 +245,9 @@
                 updateNavigation();
             }
 
-            function handleSelection(isYes) {
+            function handleSelection(status) {
                 const task = taskStates[currentStep];
-                task.completed = isYes;
+                task.completed = status;
 
                 updateButtonStyle(stepContainer.querySelector('.task-card'), task.completed);
                 
@@ -244,14 +270,18 @@
             function updateButtonStyle(card, status) {
                 const yesButton = card.querySelector('.btn-yes');
                 const noButton = card.querySelector('.btn-no');
+                const naButton = card.querySelector('.btn-na');
 
                 yesButton.classList.remove('selected');
                 noButton.classList.remove('selected');
+                naButton.classList.remove('selected');
 
                 if (status === true) {
                     yesButton.classList.add('selected');
                 } else if (status === false) {
                     noButton.classList.add('selected');
+                } else if (status === 'na') {
+                    naButton.classList.add('selected');
                 }
             }
             
@@ -268,9 +298,26 @@
             function showSummary() {
                 workflowView.classList.add('hidden');
                 summaryView.classList.remove('hidden');
-                const finalPercentage = updateScore(); // Calculate and display final score
+                const finalPercentage = updateScore();
                 
-                // Update and save daily stats
+                // Show missed steps
+                const missedSteps = taskStates.filter(task => task.completed === false);
+                if (missedSteps.length > 0) {
+                    let missedHtml = '<h3 class="text-lg font-bold text-gray-800 mb-2">Areas for Improvement:</h3><ul class="list-disc list-inside text-red-600 space-y-1">';
+                    missedSteps.forEach(step => {
+                        missedHtml += `<li>${step.title.substring(step.title.indexOf('.') + 2)}</li>`;
+                    });
+                    missedHtml += '</ul>';
+                    missedStepsSummary.innerHTML = missedHtml;
+                } else {
+                    missedStepsSummary.innerHTML = '<h3 class="text-lg font-bold text-green-600 mb-2">Great job! All applicable steps completed.</h3>';
+                }
+
+                // Show call notes
+                if (callNotes.value.trim() !== "") {
+                    callNotesSummary.innerHTML = `<h3 class="text-lg font-bold text-gray-800 mt-4 mb-2">Call Notes:</h3><p class="text-gray-600 p-3 bg-gray-50 border rounded-md whitespace-pre-wrap">${callNotes.value}</p>`;
+                }
+                
                 if (finalPercentage === 100) {
                     dailyStats.perfect++;
                 } else if (finalPercentage >= 90) {
@@ -283,20 +330,22 @@
             }
 
             function updateScore() {
-                const completedTasks = taskStates.filter(task => task.completed === true).length;
-                const totalTasks = taskStates.length;
-                const percentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+                const applicableTasks = taskStates.filter(task => task.completed !== 'na' && task.completed !== null);
+                const completedTasks = applicableTasks.filter(task => task.completed === true).length;
+                const totalApplicableTasks = applicableTasks.length;
+                
+                const percentage = totalApplicableTasks > 0 ? Math.round((completedTasks / totalApplicableTasks) * 100) : 100; // Score is 100 if no applicable tasks yet
                 scoreElement.textContent = `${percentage}%`;
                 
                 scoreElement.classList.remove('text-red-500', 'text-yellow-500', 'text-green-500', 'text-blue-600');
-                if (percentage < 50) {
+                if (percentage < 90) {
                     scoreElement.classList.add('text-red-500');
-                } else if (percentage < 90) {
+                } else if (percentage < 100) {
                     scoreElement.classList.add('text-yellow-500');
                 } else if (percentage === 100) {
                     scoreElement.classList.add('text-green-500');
                 } else {
-                    scoreElement.classList.add('text-blue-600');
+                     scoreElement.classList.add('text-blue-600');
                 }
                 return percentage;
             }
@@ -307,6 +356,8 @@
                     handleSelection(true);
                 } else if (e.target.classList.contains('btn-no')) {
                     handleSelection(false);
+                } else if (e.target.classList.contains('btn-na')) {
+                    handleSelection('na');
                 }
             });
 
