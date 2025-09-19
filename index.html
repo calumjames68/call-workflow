@@ -1,1 +1,334 @@
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Call Workflow</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .task-card {
+            transition: all 0.2s ease-in-out;
+        }
+        .btn-yes.selected {
+            background-color: #22c55e; /* green-500 */
+            color: white;
+            border-color: #16a34a; /* green-600 */
+        }
+        .btn-no.selected {
+            background-color: #ef4444; /* red-500 */
+            color: white;
+            border-color: #dc2626; /* red-600 */
+        }
+        .btn-group button {
+            transition: all 0.2s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 flex flex-col items-center justify-start min-h-screen p-4 sm:p-8">
+
+    <main class="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6 sm:p-8">
+        <header class="text-center mb-6">
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-900">Call Workflow</h1>
+            <p class="text-gray-500 mt-2">Follow the steps for each customer call.</p>
+        </header>
+        
+        <button id="toggle-stats-btn" class="absolute top-4 right-4 text-sm bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400">
+            Show Stats
+        </button>
+
+
+        <!-- Workflow View -->
+        <div id="workflow-view">
+            <!-- Progress Bar -->
+            <div class="mb-6">
+                <div class="flex justify-between mb-1">
+                    <span id="progress-text" class="text-base font-medium text-blue-700">Step 1 of 9</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                    <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300 ease-out" style="width: 11%"></div>
+                </div>
+            </div>
+
+            <!-- Current Step -->
+            <div id="step-container" class="min-h-[180px] flex items-center justify-center p-4 border border-gray-200 rounded-lg bg-gray-50 mb-6">
+                 <!-- Current task will be injected here by JavaScript -->
+            </div>
+
+            <!-- Navigation -->
+            <div class="flex justify-center items-center">
+                <button id="prev-btn" class="w-32 bg-gray-300 text-gray-800 font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
+                    Previous
+                </button>
+            </div>
+        </div>
+        
+        <!-- Summary View (Initially Hidden) -->
+        <div id="summary-view" class="hidden text-center">
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">Call Complete!</h2>
+            <p class="text-gray-600 mb-4">Here is your final completion score.</p>
+            <div class="mb-6">
+                <h3 class="text-xl font-bold text-gray-900">Completion Score</h3>
+                <p id="score" class="text-5xl font-bold text-blue-600 mt-1">0%</p>
+            </div>
+            <button id="restart-btn" class="w-full sm:w-auto bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-transform transform hover:scale-105">
+                Start New Call
+            </button>
+        </div>
+    </main>
+
+    <!-- Daily Stats -->
+    <section id="stats-section" class="hidden mt-8 w-full max-w-2xl bg-white rounded-2xl shadow-xl p-6 sm:p-8">
+        <h2 class="text-center text-2xl font-bold text-gray-900 mb-4">Today's Call Stats</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+            <div class="bg-green-100 p-4 rounded-lg">
+                <p class="text-sm font-medium text-green-800">Perfect Calls (100%)</p>
+                <p id="perfect-calls" class="text-3xl font-bold text-green-600">0</p>
+            </div>
+            <div class="bg-yellow-100 p-4 rounded-lg">
+                <p class="text-sm font-medium text-yellow-800">Good Calls (&ge;90%)</p>
+                <p id="good-calls" class="text-3xl font-bold text-yellow-600">0</p>
+            </div>
+            <div class="bg-red-100 p-4 rounded-lg">
+                <p class="text-sm font-medium text-red-800">Bad Calls (&lt;90%)</p>
+                <p id="bad-calls" class="text-3xl font-bold text-red-600">0</p>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Element references
+            const scoreElement = document.getElementById('score');
+            const restartBtn = document.getElementById('restart-btn');
+            const workflowView = document.getElementById('workflow-view');
+            const summaryView = document.getElementById('summary-view');
+            const stepContainer = document.getElementById('step-container');
+            const prevBtn = document.getElementById('prev-btn');
+            const progressBar = document.getElementById('progress-bar');
+            const progressText = document.getElementById('progress-text');
+            const perfectCallsEl = document.getElementById('perfect-calls');
+            const goodCallsEl = document.getElementById('good-calls');
+            const badCallsEl = document.getElementById('bad-calls');
+            const toggleStatsBtn = document.getElementById('toggle-stats-btn');
+            const statsSection = document.getElementById('stats-section');
+
+            const tasks = [
+                {
+                    title: "1. Introduction",
+                    prompt: "<strong>Script:</strong> \"Hi, my name is Calum calling from BT/EE. What was your name and how can I help?\""
+                },
+                {
+                    title: "2. Validation",
+                    prompt: "<strong>Script:</strong> \"I just need to validate yourself before I can get into it so I can discuss the account with you.\""
+                },
+                {
+                    title: "3. Engagement",
+                    prompt: "Build rapport. Ask open-ended questions like: \"How's your day been?\" or \"What have you tried so far?\" Actively listen to their responses."
+                },
+                {
+                    title: "4. ALBERT Process",
+                    prompt: "Adhere to the ALBERT process to systematically find the best solution for the customer's issue."
+                },
+                {
+                    title: "5. Order Delays & Keep Connected",
+                    prompt: "Explain the delay clearly. If they have no service, offer a Mini Hub. Mention SIM options: <strong>EE SIM</strong> (Unlimited data from £11.50) or <strong>BT SIM</strong> (50GB from £13)."
+                },
+                {
+                    title: "6. Complaints",
+                    prompt: "Acknowledge the customer's frustration. Raise a formal complaint if necessary and aim for one-call resolution to close it."
+                },
+                {
+                    title: "7. Recap",
+                    prompt: "Provide a clear summary of the conversation, the actions you've taken, and what the customer can expect next."
+                },
+                {
+                    title: "8. Account Notes",
+                    prompt: "Leave clear, detailed notes on the account. Ensure another advisor could understand the situation instantly."
+                },
+                {
+                    title: "9. Explore & Cross-Sell",
+                    prompt: "Ask about their household setup and current mobile provider. Mention the discounts they could get by moving their mobile service to EE."
+                }
+            ];
+
+            let taskStates = [];
+            let currentStep = 0;
+            let dailyStats = { perfect: 0, good: 0, bad: 0 };
+
+            function getTodayDateString() {
+                const today = new Date();
+                return today.toISOString().split('T')[0]; // YYYY-MM-DD format
+            }
+
+            function loadStats() {
+                const savedDate = localStorage.getItem('callStatsDate');
+                const today = getTodayDateString();
+
+                if (savedDate === today) {
+                    const savedStats = JSON.parse(localStorage.getItem('dailyCallStats'));
+                    if (savedStats) {
+                        dailyStats = savedStats;
+                    }
+                } else {
+                    // It's a new day, reset stats
+                    localStorage.setItem('callStatsDate', today);
+                    localStorage.setItem('dailyCallStats', JSON.stringify({ perfect: 0, good: 0, bad: 0 }));
+                }
+                updateStatsDisplay();
+            }
+
+            function updateStatsDisplay() {
+                perfectCallsEl.textContent = dailyStats.perfect;
+                goodCallsEl.textContent = dailyStats.good;
+                badCallsEl.textContent = dailyStats.bad;
+            }
+
+            function initializeWorkflow() {
+                currentStep = 0;
+                taskStates = tasks.map((task, index) => ({
+                    id: index,
+                    title: task.title,
+                    prompt: task.prompt,
+                    completed: null // null, true (yes), or false (no)
+                }));
+                
+                workflowView.classList.remove('hidden');
+                summaryView.classList.add('hidden');
+                
+                renderCurrentStep();
+                updateScore(); // Reset score display
+            }
+
+            function renderCurrentStep() {
+                const task = taskStates[currentStep];
+                stepContainer.innerHTML = `
+                    <div class="task-card w-full bg-transparent flex flex-col items-center justify-between gap-4" data-id="${task.id}">
+                        <h2 class="text-xl text-gray-800 flex-grow text-center font-bold">${task.title}</h2>
+                        <p class="text-base text-gray-600 text-center mt-2">${task.prompt}</p>
+                        <div class="btn-group flex-shrink-0 flex items-center gap-2 mt-4">
+                            <button class="btn-yes w-24 py-2 px-4 border border-gray-300 rounded-md font-semibold text-gray-600 bg-white hover:bg-green-100">Yes</button>
+                            <button class="btn-no w-24 py-2 px-4 border border-gray-300 rounded-md font-semibold text-gray-600 bg-white hover:bg-red-100">No</button>
+                        </div>
+                    </div>
+                `;
+
+                updateButtonStyle(stepContainer.querySelector('.task-card'), task.completed);
+                updateProgress();
+                updateNavigation();
+            }
+
+            function handleSelection(isYes) {
+                const task = taskStates[currentStep];
+                task.completed = isYes;
+
+                updateButtonStyle(stepContainer.querySelector('.task-card'), task.completed);
+                
+                // Disable buttons to prevent multiple clicks during transition
+                const buttons = stepContainer.querySelectorAll('.btn-group button');
+                buttons.forEach(b => b.disabled = true);
+                prevBtn.disabled = true;
+
+                // Wait a moment before automatically moving to the next step
+                setTimeout(() => {
+                    if (currentStep < tasks.length - 1) {
+                        currentStep++;
+                        renderCurrentStep();
+                    } else {
+                        showSummary();
+                    }
+                }, 400);
+            }
+
+            function updateButtonStyle(card, status) {
+                const yesButton = card.querySelector('.btn-yes');
+                const noButton = card.querySelector('.btn-no');
+
+                yesButton.classList.remove('selected');
+                noButton.classList.remove('selected');
+
+                if (status === true) {
+                    yesButton.classList.add('selected');
+                } else if (status === false) {
+                    noButton.classList.add('selected');
+                }
+            }
+            
+            function updateProgress() {
+                const percentage = ((currentStep + 1) / tasks.length) * 100;
+                progressBar.style.width = `${percentage}%`;
+                progressText.textContent = `Step ${currentStep + 1} of ${tasks.length}`;
+            }
+
+            function updateNavigation() {
+                prevBtn.disabled = currentStep === 0;
+            }
+            
+            function showSummary() {
+                workflowView.classList.add('hidden');
+                summaryView.classList.remove('hidden');
+                const finalPercentage = updateScore(); // Calculate and display final score
+                
+                // Update and save daily stats
+                if (finalPercentage === 100) {
+                    dailyStats.perfect++;
+                } else if (finalPercentage >= 90) {
+                    dailyStats.good++;
+                } else {
+                    dailyStats.bad++;
+                }
+                localStorage.setItem('dailyCallStats', JSON.stringify(dailyStats));
+                updateStatsDisplay();
+            }
+
+            function updateScore() {
+                const completedTasks = taskStates.filter(task => task.completed === true).length;
+                const totalTasks = taskStates.length;
+                const percentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+                scoreElement.textContent = `${percentage}%`;
+                
+                scoreElement.classList.remove('text-red-500', 'text-yellow-500', 'text-green-500', 'text-blue-600');
+                if (percentage < 50) {
+                    scoreElement.classList.add('text-red-500');
+                } else if (percentage < 90) {
+                    scoreElement.classList.add('text-yellow-500');
+                } else if (percentage === 100) {
+                    scoreElement.classList.add('text-green-500');
+                } else {
+                    scoreElement.classList.add('text-blue-600');
+                }
+                return percentage;
+            }
+
+            // Event Listeners
+            stepContainer.addEventListener('click', (e) => {
+                if (e.target.classList.contains('btn-yes')) {
+                    handleSelection(true);
+                } else if (e.target.classList.contains('btn-no')) {
+                    handleSelection(false);
+                }
+            });
+
+            prevBtn.addEventListener('click', () => {
+                if (currentStep > 0) {
+                    currentStep--;
+                    renderCurrentStep();
+                }
+            });
+
+            restartBtn.addEventListener('click', initializeWorkflow);
+
+            toggleStatsBtn.addEventListener('click', () => {
+                statsSection.classList.toggle('hidden');
+                toggleStatsBtn.textContent = statsSection.classList.contains('hidden') ? 'Show Stats' : 'Hide Stats';
+            });
+
+            // Initial setup
+            loadStats();
+            initializeWorkflow();
+        });
+    </script>
+</body>
+</html>
 
