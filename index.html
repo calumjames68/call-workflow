@@ -1,443 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Call Workflow</title>
+    <title>Customer Interaction Checklist</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bt-primary: #5514b4;
-            --bt-primary-hover: #441090;
-            --ee-primary: #009999;
-            --ee-primary-hover: #007a7a;
-            --secondary-gray: #6c757d;
-            --secondary-gray-hover: #5a6268;
-        }
-
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f4f7f9;
+            background-color: #f8fafc;
         }
-
-        .btn {
-            padding: 12px 24px;
-            border-radius: 6px;
-            font-weight: 600;
-            font-size: 16px;
+        .info-icon {
+            color: #9ca3af;
             cursor: pointer;
-            transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s;
-            border: none;
-            color: white;
-            display: block;
-            width: 100%;
+            font-weight: bold;
         }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        .radio-group label {
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+            margin-right: 1rem;
+            font-size: 0.875rem;
+            color: #4b5563;
         }
-
-        .btn-bt { background-color: var(--bt-primary); }
-        .btn-bt:hover { background-color: var(--bt-primary-hover); }
-
-        .btn-ee { background-color: var(--ee-primary); }
-        .btn-ee:hover { background-color: var(--ee-primary-hover); }
-        
-        .btn-secondary { background-color: var(--secondary-gray); }
-        .btn-secondary:hover { background-color: var(--secondary-gray-hover); }
-
-        .form-input {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #dbe2e8;
-            border-radius: 6px;
-            font-size: 16px;
-            box-sizing: border-box;
+        .radio-group input[type="radio"] {
+            margin-right: 0.25rem;
         }
-        
-        #progress-bar { background-color: var(--bt-primary); }
-        .header-title { font-weight: 800; font-size: 2.25rem; }
-
-        .task-card { transition: all 0.2s ease-in-out; }
-        .btn-yes.selected { background-color: #22c55e; color: white; border-color: #16a34a; }
-        .btn-no.selected { background-color: #ef4444; color: white; border-color: #dc2626; }
-        .btn-na.selected { background-color: #64748b; color: white; border-color: #475569; }
-        .btn-group button { transition: all 0.2s ease-in-out; }
+        /* Modal styles */
+        .modal-backdrop {
+            transition: opacity 0.3s ease;
+        }
+        .modal-content {
+            transition: transform 0.3s ease;
+        }
     </style>
 </head>
-<body class="text-gray-800 flex flex-col items-center justify-start min-h-screen p-4 sm:p-8">
+<body class="p-4 sm:p-8">
 
-    <main class="relative bg-white rounded-lg shadow-lg w-full max-w-2xl p-6 sm:p-8">
-        <header class="text-center mb-6">
-            <h1 class="header-title text-gray-900">Call Workflow</h1>
-            <p class="text-gray-500 mt-2">Follow the steps for each customer call.</p>
+    <div class="max-w-7xl mx-auto">
+
+        <header class="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center">
+             <h1 class="text-3xl font-bold text-gray-800 mb-4 sm:mb-0">Customer Interaction Checklist</h1>
+             <!-- Daily Stats Section -->
+             <div class="bg-white p-4 rounded-lg shadow-md w-full sm:w-auto">
+                <div class="flex items-center justify-center gap-4 mb-2">
+                    <button id="prev-day-btn" class="text-indigo-600 hover:text-indigo-800 font-bold p-1 rounded-full leading-none disabled:opacity-50 disabled:cursor-not-allowed">&lt;</button>
+                    <h3 class="font-bold text-sm uppercase text-gray-500 tracking-wider text-center" id="stats-date-display">Today's Stats</h3>
+                    <button id="next-day-btn" class="text-indigo-600 hover:text-indigo-800 font-bold p-1 rounded-full leading-none disabled:opacity-50 disabled:cursor-not-allowed" disabled>&gt;</button>
+                </div>
+                <div class="flex justify-around gap-6 text-center">
+                    <div>
+                        <p class="text-2xl font-bold text-indigo-600" id="total-calls">0</p>
+                        <p class="text-xs text-gray-500">Total Calls</p>
+                    </div>
+                    <div>
+                        <p class="text-2xl font-bold text-indigo-600" id="average-score">0%</p>
+                        <p class="text-xs text-gray-500">Average Score</p>
+                    </div>
+                </div>
+            </div>
         </header>
-        
-        <button id="toggle-stats-btn" class="absolute top-4 right-4 text-sm bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded-md hover:bg-gray-300 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400">
-            Show Stats
-        </button>
 
-        <!-- Call Type Selection -->
-        <div id="call-type-selection" class="text-center py-8">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4">What kind of call is this?</h2>
-            <div class="flex justify-center gap-4">
-                <button id="guide-call-btn" class="btn btn-bt w-40 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-400">
-                    Guide Call
-                </button>
-                <button id="offline-call-btn" class="btn btn-ee w-40 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-400">
-                    Offline Call
-                </button>
-            </div>
-        </div>
+        <form id="checklist-form">
+            <!-- Stages Section -->
+            <section class="mb-10">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">Stages</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        <!-- Workflow View -->
-        <div id="workflow-view" class="hidden">
-            <!-- Progress Bar -->
-            <div class="mb-6">
-                <div class="flex justify-between mb-1">
-                    <span id="progress-text" class="text-base font-medium text-gray-700">Step 1 of 9</span>
+                    <!-- 1. Connect & Understand -->
+                    <div class="bg-white p-5 rounded-lg shadow-md flex flex-col">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-bold text-xs uppercase text-gray-500 tracking-wider">1. Connect & Understand</h3>
+                            <span class="info-icon" title="Merge of 'Welcome' and 'Explore the Household'">&#9432;</span>
+                        </div>
+                        <div class="space-y-5 flex-grow">
+                            <!-- Questions from Welcome -->
+                            <div>
+                                <p class="text-sm text-gray-700 mb-2">Introduce ourselves as Guides with our name and location</p>
+                                <p class="text-xs text-gray-500 italic mt-1 mb-2">"Hi my name is Calum from Dundee and I'll be your guide today."</p>
+                                <div class="radio-group"><label><input type="radio" name="welcome_intro" value="Yes" required> Yes</label><label><input type="radio" name="welcome_intro" value="No"> No</label></div>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-700 mb-2">Check who we are speaking with & understand how they'd like to be referred to</p>
+                                <p class="text-xs text-gray-500 italic mt-1 mb-2">e.g., "Can I take your name please? And how would you like me to address you?"</p>
+                                <div class="radio-group"><label><input type="radio" name="welcome_refer" value="Yes" required> Yes</label><label><input type="radio" name="welcome_refer" value="No"> No</label></div>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-700 mb-2">Be ready to help our customer</p>
+                                <p class="text-xs text-gray-500 italic mt-1 mb-2">e.g., "How can I help you today?"</p>
+                                <div class="radio-group"><label><input type="radio" name="welcome_ready" value="Yes" required> Yes</label><label><input type="radio" name="welcome_ready" value="No"> No</label></div>
+                            </div>
+                            <!-- Questions from Explore -->
+                            <div>
+                                <p class="text-sm text-gray-700 mb-2">Ask open questions to fully understand why they contacted us</p>
+                                <p class="text-xs text-gray-500 italic mt-1 mb-2">e.g., "Could you tell me a bit more about what's been happening?"</p>
+                                <div class="radio-group"><label><input type="radio" name="explore_questions" value="Yes" required> Yes</label><label><input type="radio" name="explore_questions" value="No"> No</label><label><input type="radio" name="explore_questions" value="Partial"> Partial</label></div>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-700 mb-2">Invite customer to talk about individual and household needs</p>
+                                <p class="text-xs text-gray-500 italic mt-1 mb-2">e.g., "To get a better picture, can you tell me who uses the service at home?"</p>
+                                <div class="radio-group"><label><input type="radio" name="explore_invite" value="Yes" required> Yes</label><label><input type="radio" name="explore_invite" value="No"> No</label><label><input type="radio" name="explore_invite" value="Partial"> Partial</label><label><input type="radio" name="explore_invite" value="N/A"> N/A</label></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Guide & Resolve -->
+                    <div class="bg-white p-5 rounded-lg shadow-md flex flex-col">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-bold text-xs uppercase text-gray-500 tracking-wider">2. Guide & Resolve</h3>
+                             <span class="info-icon" title="Core problem-solving part of the call">&#9432;</span>
+                        </div>
+                        <div class="space-y-5 flex-grow">
+                             <div>
+                                <p class="text-sm text-gray-700 mb-2">Use the necessary tools and processes to provide the right solution</p>
+                                <p class="text-xs text-gray-500 italic mt-1 mb-2">e.g., Follow the ALBERT process, check system notes thoroughly.</p>
+                                <div class="radio-group"><label><input type="radio" name="solution_tools" value="Yes" required> Yes</label><label><input type="radio" name="solution_tools" value="No"> No</label><label><input type="radio" name="solution_tools" value="Partial"> Partial</label></div>
+                            </div>
+                             <div>
+                                <p class="text-sm text-gray-700 mb-2">Bring the customer on the journey</p>
+                                <p class="text-xs text-gray-500 italic mt-1 mb-2">e.g., "Okay, I'm just running a check on the line now, it should take about a minute."</p>
+                                <div class="radio-group"><label><input type="radio" name="solution_journey" value="Yes" required> Yes</label><label><input type="radio" name="solution_journey" value="No"> No</label><label><input type="radio" name="solution_journey" value="Partial"> Partial</label></div>
+                            </div>
+                             <div>
+                                <p class="text-sm text-gray-700 mb-2">Offer an alternative or multiple solutions, where appropriate</p>
+                                <p class="text-xs text-gray-500 italic mt-1 mb-2">e.g., "We could do X now, or we could try Y which might be a better long-term fix."</p>
+                                <div class="radio-group"><label><input type="radio" name="solution_alternatives" value="Yes" required> Yes</label><label><input type="radio" name="solution_alternatives" value="No"> No</label><label><input type="radio" name="solution_alternatives" value="Partial"> Partial</label></div>
+                            </div>
+                             <div>
+                                <p class="text-sm text-gray-700 mb-2">Explain next steps and gain commitment</p>
+                                <p class="text-xs text-gray-500 italic mt-1 mb-2">e.g., "So, the next step is an engineer visit. Are you happy for me to book that?"</p>
+                                <div class="radio-group"><label><input type="radio" name="solution_steps" value="Yes" required> Yes</label><label><input type="radio" name="solution_steps" value="No"> No</label><label><input type="radio" name="solution_steps" value="Partial"> Partial</label></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Strengthen & Conclude -->
+                    <div class="bg-white p-5 rounded-lg shadow-md flex flex-col">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-bold text-xs uppercase text-gray-500 tracking-wider">3. Strengthen & Conclude</h3>
+                            <span class="info-icon" title="Merge of 'Build Relationship' and 'Until Next Time'">&#9432;</span>
+                        </div>
+                        <div class="space-y-5 flex-grow">
+                            <div>
+                                <p class="text-sm text-gray-700 mb-2">Make the customer feel valued</p>
+                                <p class="text-xs text-gray-500 italic mt-1 mb-2">e.g., "I can see you've been with us for a while, we really appreciate that."</p>
+                                <div class="radio-group"><label><input type="radio" name="rel_valued" value="Yes" required> Yes</label><label><input type="radio" name="rel_valued" value="No"> No</label><label><input type="radio" name="rel_valued" value="Partial"> Partial</label></div>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-700 mb-2">Help them understand how to explore their benefits</p>
+                                <p class="text-xs text-gray-500 italic mt-1 mb-2">e.g., "Did you know that as part of your plan, you also have access to...?"</p>
+                                <div class="radio-group"><label><input type="radio" name="rel_benefits" value="Yes" required> Yes</label><label><input type="radio" name="rel_benefits" value="No"> No</label><label><input type="radio" name="rel_benefits" value="Partial"> Partial</label></div>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-700 mb-2">Ensure they leave feeling confident & clear on what's next</p>
+                                <p class="text-xs text-gray-500 italic mt-1 mb-2">e.g., "Just to recap, I've booked the engineer for Tuesday and you'll get a text to confirm."</p>
+                                <div class="radio-group"><label><input type="radio" name="next_confident" value="Yes" required> Yes</label><label><input type="radio" name="next_confident" value="No"> No</label></div>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-700 mb-2">Thank our customers</p>
+                                <p class="text-xs text-gray-500 italic mt-1 mb-2">e.g., "Thanks again for your time today, is there anything else at all I can help with?"</p>
+                                <div class="radio-group"><label><input type="radio" name="next_thank" value="Yes" required> Yes</label><label><input type="radio" name="next_thank" value="No"> No</label></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="w-full bg-gray-200 rounded-full h-2.5">
-                    <div id="progress-bar" class="h-2.5 rounded-full transition-all duration-300 ease-out" style="width: 11%"></div>
+            </section>
+
+            <!-- Behaviours Section -->
+            <section class="mb-10">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">Behaviours</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white p-5 rounded-lg shadow-md">
+                        <h3 class="font-bold text-xs uppercase text-gray-500 tracking-wider mb-5">Treat you how you like to be treated</h3>
+                        <div class="grid grid-cols-[1fr_auto_auto] items-center gap-y-4 gap-x-2">
+                            <span class="font-semibold text-gray-800">Curious</span>
+                            <div class="radio-group flex-shrink-0"><label><input type="radio" name="beh_curious" value="Yes" required> Yes</label><label><input type="radio" name="beh_curious" value="No"> No</label><label><input type="radio" name="beh_curious" value="Partial"> Partial</label></div>
+                            <span class="info-icon" title="e.g., Dig deeper than the surface issue. What's the real impact on them?">&#9432;</span>
+                            
+                            <span class="font-semibold text-gray-800">Knowledgeable</span>
+                            <div class="radio-group flex-shrink-0"><label><input type="radio" name="beh_knowledge" value="Yes" required> Yes</label><label><input type="radio" name="beh_knowledge" value="No"> No</label><label><input type="radio" name="beh_knowledge" value="Partial"> Partial</label></div>
+                            <span class="info-icon" title="e.g., Use clear, confident language. Avoid 'I think' or 'maybe'.">&#9432;</span>
+                            
+                            <span class="font-semibold text-gray-800">Honest and Fair</span>
+                            <div class="radio-group flex-shrink-0"><label><input type="radio" name="beh_honest" value="Yes" required> Yes</label><label><input type="radio" name="beh_honest" value="No"> No</label><label><input type="radio" name="beh_honest" value="Partial"> Partial</label></div>
+                            <span class="info-icon" title="e.g., If something is not possible, say so and explain why. Don't overpromise.">&#9432;</span>
+                        </div>
+                    </div>
+                    <div class="bg-white p-5 rounded-lg shadow-md">
+                        <h3 class="font-bold text-xs uppercase text-gray-500 tracking-wider mb-5">Be your personal guide</h3>
+                        <div class="grid grid-cols-[1fr_auto_auto] items-center gap-y-4 gap-x-2">
+                            <span class="font-semibold text-gray-800">Offer Relevant Products & Services</span>
+                            <div class="radio-group flex-shrink-0"><label><input type="radio" name="guide_offer" value="Yes" required> Yes</label><label><input type="radio" name="guide_offer" value="No"> No</label><label><input type="radio" name="guide_offer" value="Partial"> Partial</label><label><input type="radio" name="guide_offer" value="N/A"> N/A</label></div>
+                            <span class="info-icon" title="e.g., 'Based on what you've said, our new TV package might actually save you money.'">&#9432;</span>
+                            
+                            <span class="font-semibold text-gray-800">Take Ownership</span>
+                            <div class="radio-group flex-shrink-0"><label><input type="radio" name="guide_ownership" value="Yes" required> Yes</label><label><input type="radio" name="guide_ownership" value="No"> No</label><label><input type="radio" name="guide_ownership" value="Partial"> Partial</label></div>
+                            <span class="info-icon" title="e.g., Use 'I will' instead of 'we will'. 'I'll get that sorted for you.'">&#9432;</span>
+                            
+                            <span class="font-semibold text-gray-800">Brand Advocacy</span>
+                            <div class="radio-group flex-shrink-0"><label><input type="radio" name="guide_brand" value="Yes" required> Yes</label><label><input type="radio" name="guide_brand" value="No"> No</label><label><input type="radio" name="guide_brand" value="Partial"> Partial</label></div>
+                            <span class="info-icon" title="e.g., Share positive features or news about the company when relevant.">&#9432;</span>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- Current Step -->
-            <div id="step-container" class="min-h-[180px] flex items-center justify-center p-4 border border-gray-200 rounded-lg bg-gray-50 mb-6">
-                 <!-- Current task will be injected here by JavaScript -->
-            </div>
-
-            <!-- Call Notes -->
-            <div class="mb-6">
-                <label for="call-notes" class="block text-sm font-medium text-gray-700 mb-1">Call Notes</label>
-                <textarea id="call-notes" rows="3" class="form-input" placeholder="Jot down key points from the call..."></textarea>
-            </div>
-
-
-            <!-- Navigation -->
-            <div class="flex justify-center items-center">
-                <button id="prev-btn" class="btn btn-secondary w-32 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none">
-                    Previous
+            <div class="text-center">
+                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-transform transform hover:scale-105">
+                    Submit & Score Call
                 </button>
             </div>
-        </div>
-        
-        <!-- Summary View (Initially Hidden) -->
-        <div id="summary-view" class="hidden text-center">
-            <h2 class="text-2xl font-bold text-gray-900 mb-2">Call Complete!</h2>
-            <p class="text-gray-600 mb-4">Here is your final completion score.</p>
-            <div class="mb-6">
-                <h3 class="text-xl font-bold text-gray-900">Completion Score</h3>
-                <p id="score" class="text-5xl font-bold mt-1" style="color: var(--bt-primary);">0%</p>
-            </div>
+        </form>
+    </div>
 
-             <!-- Missed Steps Summary -->
-            <div id="missed-steps-summary" class="mb-6 text-left"></div>
-
-            <!-- Call Notes Summary -->
-            <div id="call-notes-summary" class="mb-6 text-left"></div>
-
-            <button id="restart-btn" class="btn btn-bt w-full sm:w-auto focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-400">
+    <!-- Score Modal -->
+    <div id="score-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center p-4 hidden modal-backdrop">
+        <div class="bg-white rounded-lg shadow-2xl p-8 max-w-sm w-full text-center modal-content scale-95">
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Call Complete!</h2>
+            <p class="text-gray-600 mb-4">Here is your score for this call.</p>
+            <p id="final-score" class="text-6xl font-bold my-4">0%</p>
+            <button id="new-call-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105">
                 Start New Call
             </button>
         </div>
-    </main>
+    </div>
+    
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const checklistForm = document.getElementById('checklist-form');
+    const scoreModal = document.getElementById('score-modal');
+    const finalScoreEl = document.getElementById('final-score');
+    const newCallBtn = document.getElementById('new-call-btn');
+    const totalCallsEl = document.getElementById('total-calls');
+    const averageScoreEl = document.getElementById('average-score');
+    const statsDateDisplay = document.getElementById('stats-date-display');
+    const prevDayBtn = document.getElementById('prev-day-btn');
+    const nextDayBtn = document.getElementById('next-day-btn');
+    
+    let viewedDate = new Date();
 
-    <!-- Daily Stats -->
-    <section id="stats-section" class="hidden mt-8 w-full max-w-2xl bg-white rounded-lg shadow-lg p-6 sm:p-8">
-        <h2 class="text-center text-2xl font-bold text-gray-900 mb-4">Today's Call Stats</h2>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-            <div class="bg-green-100 p-4 rounded-md">
-                <p class="text-sm font-medium text-green-800">Perfect Calls (100%)</p>
-                <p id="perfect-calls" class="text-3xl font-bold text-green-600">0</p>
-            </div>
-            <div class="bg-yellow-100 p-4 rounded-md">
-                <p class="text-sm font-medium text-yellow-800">Good Calls (&ge;90%)</p>
-                <p id="good-calls" class="text-3xl font-bold text-yellow-600">0</p>
-            </div>
-            <div class="bg-red-100 p-4 rounded-md">
-                <p class="text-sm font-medium text-red-800">Bad Calls (&lt;90%)</p>
-                <p id="bad-calls" class="text-3xl font-bold text-red-600">0</p>
-            </div>
-        </div>
-    </section>
+    function getDateString(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // Element references
-            const scoreElement = document.getElementById('score');
-            const restartBtn = document.getElementById('restart-btn');
-            const workflowView = document.getElementById('workflow-view');
-            const summaryView = document.getElementById('summary-view');
-            const stepContainer = document.getElementById('step-container');
-            const prevBtn = document.getElementById('prev-btn');
-            const progressBar = document.getElementById('progress-bar');
-            const progressText = document.getElementById('progress-text');
-            const perfectCallsEl = document.getElementById('perfect-calls');
-            const goodCallsEl = document.getElementById('good-calls');
-            const badCallsEl = document.getElementById('bad-calls');
-            const toggleStatsBtn = document.getElementById('toggle-stats-btn');
-            const statsSection = document.getElementById('stats-section');
-            const callNotes = document.getElementById('call-notes');
-            const missedStepsSummary = document.getElementById('missed-steps-summary');
-            const callNotesSummary = document.getElementById('call-notes-summary');
-            const callTypeSelection = document.getElementById('call-type-selection');
-            const guideCallBtn = document.getElementById('guide-call-btn');
-            const offlineCallBtn = document.getElementById('offline-call-btn');
+    function updateStatsDisplay(scores = []) {
+        totalCallsEl.textContent = scores.length;
+        if (scores.length > 0) {
+            const totalScore = scores.reduce((sum, score) => sum + score, 0);
+            const average = Math.round(totalScore / scores.length);
+            averageScoreEl.textContent = `${average}%`;
+        } else {
+            averageScoreEl.textContent = '0%';
+            totalCallsEl.textContent = '0';
+        }
+    }
 
-            const offlineTasks = [
-                {
-                    title: "1. Introduction",
-                    prompt: "<strong>Script:</strong> \"Hi, my name is Calum calling from BT/EE. What was your name and how can I help?\""
-                },
-                {
-                    title: "2. Validation",
-                    prompt: "<strong>Script:</strong> \"I just need to validate yourself before I can get into it so I can discuss the account with you.\""
-                },
-                {
-                    title: "3. Engagement",
-                    prompt: "Build rapport. Ask open-ended questions like: \"How's your day been?\" or \"What have you tried so far?\" Actively listen to their responses."
-                },
-                {
-                    title: "4. ALBERT Process",
-                    prompt: "Adhere to the ALBERT process to systematically find the best solution for the customer's issue."
-                },
-                {
-                    title: "5. Order Delays & Keep Connected",
-                    prompt: "Explain the delay clearly. If they have no service, offer a Mini Hub. Mention SIM options: <strong>EE SIM</strong> (Unlimited data from £11.50) or <strong>BT SIM</strong> (50GB from £13)."
-                },
-                {
-                    title: "6. Complaints",
-                    prompt: "Acknowledge the customer's frustration. Raise a formal complaint if necessary and aim for one-call resolution to close it."
-                },
-                {
-                    title: "7. Recap",
-                    prompt: "Provide a clear summary of the conversation, the actions you've taken, and what the customer can expect next."
-                },
-                {
-                    title: "8. Account Notes",
-                    prompt: "Leave clear, detailed notes on the account. Ensure another advisor could understand the situation instantly."
-                },
-                {
-                    title: "9. Explore & Cross-Sell",
-                    prompt: "Ask about their household setup and current mobile provider. Mention the discounts they could get by moving their mobile service to EE."
+    function displayStatsForDate(date) {
+        const dateKey = getDateString(date);
+        const allStats = JSON.parse(localStorage.getItem('allCallStats')) || {};
+        const dayStats = allStats[dateKey] ? allStats[dateKey].scores : [];
+        
+        updateStatsDisplay(dayStats);
+
+        const todayKey = getDateString(new Date());
+        if (dateKey === todayKey) {
+            statsDateDisplay.textContent = "Today's Stats";
+        } else {
+            statsDateDisplay.textContent = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+        }
+
+        nextDayBtn.disabled = dateKey === todayKey;
+    }
+
+    prevDayBtn.addEventListener('click', () => {
+        viewedDate.setDate(viewedDate.getDate() - 1);
+        displayStatsForDate(viewedDate);
+    });
+
+    nextDayBtn.addEventListener('click', () => {
+        viewedDate.setDate(viewedDate.getDate() + 1);
+        displayStatsForDate(viewedDate);
+    });
+
+    checklistForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        
+        const formData = new FormData(checklistForm);
+        let score = 0;
+        let maxScore = 0;
+
+        const questions = [...new Set([...formData.keys()])];
+
+        questions.forEach(name => {
+            const value = formData.get(name);
+            if (value !== 'N/A') {
+                maxScore += 1;
+                if (value === 'Yes') {
+                    score += 1;
+                } else if (value === 'Partial') {
+                    score += 0.5;
                 }
-            ];
-            
-            const guideTasks = [
-                { title: "1. Greet Guide", prompt: "Welcome the guide, get their advisor ID, and ask for a summary of the customer's issue." },
-                { title: "2. Assist & Advise", prompt: "Investigate the issue and provide a clear solution or the next steps for the guide to take." },
-                { title: "3. Handover Customer?", prompt: "Is the guide transferring the live customer call to you for resolution?", transition: true }
-            ];
-
-            let taskStates = [];
-            let currentStep = 0;
-            let dailyStats = { perfect: 0, good: 0, bad: 0 };
-            let activeTasks = [];
-
-            function getTodayDateString() {
-                const today = new Date();
-                return today.toISOString().split('T')[0];
             }
-
-            function loadStats() {
-                const savedDate = localStorage.getItem('callStatsDate');
-                const today = getTodayDateString();
-                if (savedDate === today) {
-                    const savedStats = JSON.parse(localStorage.getItem('dailyCallStats'));
-                    if (savedStats) dailyStats = savedStats;
-                } else {
-                    localStorage.setItem('callStatsDate', today);
-                    localStorage.setItem('dailyCallStats', JSON.stringify({ perfect: 0, good: 0, bad: 0 }));
-                }
-                updateStatsDisplay();
-            }
-
-            function updateStatsDisplay() {
-                perfectCallsEl.textContent = dailyStats.perfect;
-                goodCallsEl.textContent = dailyStats.good;
-                badCallsEl.textContent = dailyStats.bad;
-            }
-
-            function initializeWorkflow() {
-                currentStep = 0;
-                taskStates = activeTasks.map((task, index) => ({
-                    id: index,
-                    title: task.title,
-                    prompt: task.prompt,
-                    transition: task.transition || false,
-                    completed: null
-                }));
-                
-                callNotes.value = '';
-                missedStepsSummary.innerHTML = '';
-                callNotesSummary.innerHTML = '';
-
-                callTypeSelection.classList.add('hidden');
-                workflowView.classList.remove('hidden');
-                summaryView.classList.add('hidden');
-                
-                renderCurrentStep();
-                updateScore();
-            }
-
-            function renderCurrentStep() {
-                const task = activeTasks[currentStep];
-                stepContainer.innerHTML = `
-                    <div class="task-card w-full bg-transparent flex flex-col items-center justify-between gap-4" data-id="${task.id}">
-                        <h2 class="text-xl text-gray-800 flex-grow text-center font-bold">${task.title}</h2>
-                        <p class="text-base text-gray-600 text-center mt-2">${task.prompt}</p>
-                        <div class="btn-group flex-shrink-0 flex items-center gap-2 mt-4">
-                            <button class="btn-yes w-24 py-2 px-4 border border-gray-300 rounded-md font-semibold text-gray-600 bg-white hover:bg-green-100">Yes</button>
-                            <button class="btn-no w-24 py-2 px-4 border border-gray-300 rounded-md font-semibold text-gray-600 bg-white hover:bg-red-100">No</button>
-                            <button class="btn-na w-24 py-2 px-4 border border-gray-300 rounded-md font-semibold text-gray-600 bg-white hover:bg-slate-100">N/A</button>
-                        </div>
-                    </div>
-                `;
-
-                updateButtonStyle(stepContainer.querySelector('.task-card'), taskStates[currentStep].completed);
-                updateProgress();
-                updateNavigation();
-            }
-
-            function handleSelection(status) {
-                const task = activeTasks[currentStep];
-                taskStates[currentStep].completed = status;
-
-                updateButtonStyle(stepContainer.querySelector('.task-card'), status);
-                
-                const buttons = stepContainer.querySelectorAll('.btn-group button');
-                buttons.forEach(b => b.disabled = true);
-                prevBtn.disabled = true;
-
-                if (task.transition && status === true) {
-                    setTimeout(() => {
-                        activeTasks = offlineTasks;
-                        taskStates = activeTasks.map((task, index) => ({
-                            id: index, title: task.title, prompt: task.prompt,
-                            transition: task.transition || false, completed: null
-                        }));
-                        currentStep = 1; 
-                        taskStates[0].completed = true; 
-                        renderCurrentStep();
-                    }, 400);
-                    return; 
-                }
-
-                setTimeout(() => {
-                    if (currentStep < activeTasks.length - 1) {
-                        currentStep++;
-                        renderCurrentStep();
-                    } else {
-                        showSummary();
-                    }
-                }, 400);
-            }
-
-            function updateButtonStyle(card, status) {
-                const yesButton = card.querySelector('.btn-yes');
-                const noButton = card.querySelector('.btn-no');
-                const naButton = card.querySelector('.btn-na');
-                yesButton.classList.remove('selected');
-                noButton.classList.remove('selected');
-                naButton.classList.remove('selected');
-
-                if (status === true) yesButton.classList.add('selected');
-                else if (status === false) noButton.classList.add('selected');
-                else if (status === 'na') naButton.classList.add('selected');
-            }
-            
-            function updateProgress() {
-                const percentage = ((currentStep + 1) / activeTasks.length) * 100;
-                progressBar.style.width = `${percentage}%`;
-                progressText.textContent = `Step ${currentStep + 1} of ${activeTasks.length}`;
-            }
-
-            function updateNavigation() {
-                prevBtn.disabled = currentStep === 0;
-            }
-            
-            function showSummary() {
-                workflowView.classList.add('hidden');
-                summaryView.classList.remove('hidden');
-                const finalPercentage = updateScore();
-                
-                const missedSteps = taskStates.filter(task => task.completed === false);
-                if (missedSteps.length > 0) {
-                    let missedHtml = '<h3 class="text-lg font-bold text-gray-800 mb-2">Areas for Improvement:</h3><ul class="list-disc list-inside text-red-600 space-y-1">';
-                    missedSteps.forEach(step => {
-                        missedHtml += `<li>${step.title.substring(step.title.indexOf('.') + 2)}</li>`;
-                    });
-                    missedHtml += '</ul>';
-                    missedStepsSummary.innerHTML = missedHtml;
-                } else {
-                    missedStepsSummary.innerHTML = '<h3 class="text-lg font-bold text-green-600 mb-2">Great job! All applicable steps completed.</h3>';
-                }
-
-                if (callNotes.value.trim() !== "") {
-                    callNotesSummary.innerHTML = `<h3 class="text-lg font-bold text-gray-800 mt-4 mb-2">Call Notes:</h3><p class="text-gray-600 p-3 bg-gray-50 border rounded-md whitespace-pre-wrap">${callNotes.value}</p>`;
-                }
-                
-                if (finalPercentage === 100) dailyStats.perfect++;
-                else if (finalPercentage >= 90) dailyStats.good++;
-                else dailyStats.bad++;
-                localStorage.setItem('dailyCallStats', JSON.stringify(dailyStats));
-                updateStatsDisplay();
-            }
-
-            function updateScore() {
-                const applicableTasks = taskStates.filter(task => task.completed !== 'na' && task.completed !== null);
-                const completedTasks = applicableTasks.filter(task => task.completed === true).length;
-                const totalApplicableTasks = applicableTasks.length;
-                
-                const percentage = totalApplicableTasks > 0 ? Math.round((completedTasks / totalApplicableTasks) * 100) : 100;
-                scoreElement.textContent = `${percentage}%`;
-                
-                scoreElement.style.color = 'var(--bt-primary)';
-                if (percentage < 90) scoreElement.style.color = '#ef4444';
-                else if (percentage < 100) scoreElement.style.color = '#f59e0b';
-                else if (percentage === 100) scoreElement.style.color = '#22c55e';
-                
-                return percentage;
-            }
-
-            // Event Listeners
-            stepContainer.addEventListener('click', (e) => {
-                if (e.target.classList.contains('btn-yes')) handleSelection(true);
-                else if (e.target.classList.contains('btn-no')) handleSelection(false);
-                else if (e.target.classList.contains('btn-na')) handleSelection('na');
-            });
-
-            prevBtn.addEventListener('click', () => {
-                if (currentStep > 0) {
-                    currentStep--;
-                    renderCurrentStep();
-                }
-            });
-
-            restartBtn.addEventListener('click', () => {
-                summaryView.classList.add('hidden');
-                callTypeSelection.classList.remove('hidden');
-            });
-
-            toggleStatsBtn.addEventListener('click', () => {
-                statsSection.classList.toggle('hidden');
-                toggleStatsBtn.textContent = statsSection.classList.contains('hidden') ? 'Show Stats' : 'Hide Stats';
-            });
-            
-            guideCallBtn.addEventListener('click', () => {
-                activeTasks = guideTasks;
-                initializeWorkflow();
-            });
-
-            offlineCallBtn.addEventListener('click', () => {
-                activeTasks = offlineTasks;
-                initializeWorkflow();
-            });
-
-            // Initial setup
-            loadStats();
         });
-    </script>
+
+        const percentage = (maxScore > 0) ? Math.round((score / maxScore) * 100) : 100;
+        
+        finalScoreEl.classList.remove('text-green-600', 'text-amber-500', 'text-red-600');
+        if (percentage >= 90) {
+            finalScoreEl.classList.add('text-green-600');
+        } else if (percentage >= 75) {
+            finalScoreEl.classList.add('text-amber-500');
+        } else {
+            finalScoreEl.classList.add('text-red-600');
+        }
+        
+        finalScoreEl.textContent = `${percentage}%`;
+        scoreModal.classList.remove('hidden');
+        setTimeout(() => {
+             scoreModal.querySelector('.modal-content').classList.remove('scale-95');
+             scoreModal.classList.remove('opacity-0');
+        }, 10);
+        
+        const todayKey = getDateString(new Date());
+        let allStats = JSON.parse(localStorage.getItem('allCallStats')) || {};
+        if (!allStats[todayKey]) {
+            allStats[todayKey] = { scores: [] };
+        }
+        allStats[todayKey].scores.push(percentage);
+        localStorage.setItem('allCallStats', JSON.stringify(allStats));
+        
+        viewedDate = new Date();
+        displayStatsForDate(viewedDate);
+    });
+    
+    newCallBtn.addEventListener('click', () => {
+        checklistForm.reset();
+        scoreModal.querySelector('.modal-content').classList.add('scale-95');
+        scoreModal.classList.add('opacity-0');
+        setTimeout(() => {
+            scoreModal.classList.add('hidden');
+        }, 300);
+    });
+
+    displayStatsForDate(viewedDate);
+});
+</script>
+
 </body>
 </html>
