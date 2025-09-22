@@ -316,8 +316,18 @@ document.addEventListener('DOMContentLoaded', () => {
         questions.forEach(name => {
             const value = formData.get(name);
             const inputElement = checklistForm.querySelector(`input[name="${name}"]`);
-            const questionContainer = inputElement.closest('.radio-group').parentElement;
-            const questionText = questionContainer.querySelector('p.text-sm').textContent;
+            
+            // Get the container for the question text, which is structured differently for stages vs behaviours
+            let questionTextContainer;
+            if (inputElement.closest('.bg-white').querySelector('h3').textContent.startsWith('Treat') || inputElement.closest('.bg-white').querySelector('h3').textContent.startsWith('Be your')) {
+                 questionTextContainer = inputElement.closest('.radio-group').previousElementSibling;
+            } else {
+                 questionTextContainer = inputElement.closest('.radio-group').parentElement;
+            }
+            
+            const questionTextEl = questionTextContainer.querySelector('p.text-sm') || questionTextContainer;
+            const questionText = questionTextEl.textContent;
+
 
             if (value !== 'N/A') {
                 maxScore += 1;
